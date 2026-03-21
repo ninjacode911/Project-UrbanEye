@@ -9,8 +9,12 @@ All transforms are YOLO-bbox-compatible via A.BboxParams.
 
 from __future__ import annotations
 
-import albumentations as A
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    import albumentations as A
 
 
 def get_train_augmentation(level: str = "medium") -> A.Compose:
@@ -28,6 +32,8 @@ def get_train_augmentation(level: str = "medium") -> A.Compose:
     Raises:
         ValueError: If level is not one of the valid options.
     """
+    import albumentations as A
+
     valid_levels = {"light", "medium", "heavy"}
     if level not in valid_levels:
         raise ValueError(f"level must be one of {valid_levels}, got '{level}'")

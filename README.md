@@ -10,9 +10,10 @@
 [![YOLOv11](https://img.shields.io/badge/YOLOv11-Detection-EE4C2C?style=flat&logo=pytorch&logoColor=white)](https://docs.ultralytics.com/)
 [![CARLA](https://img.shields.io/badge/CARLA-0.9.15-76B900?style=flat&logo=nvidia&logoColor=white)](https://carla.org/)
 [![Tests](https://img.shields.io/badge/Tests-270%20passing-brightgreen?style=flat)](tests/)
+[![HF Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20HF%20Spaces-Live%20Demo-FFD21E?style=flat)](https://huggingface.co/spaces/NinjainPJs/UrbanEye)
 [![License](https://img.shields.io/badge/License-Source%20Available-blue.svg)](LICENSE)
 
-[**Documentation →**](docs/)&nbsp;&nbsp;|&nbsp;&nbsp;[**Architecture →**](docs/ARCHITECTURE.md)&nbsp;&nbsp;|&nbsp;&nbsp;[**Phase Log →**](docs/PHASES.md)
+[**Live Demo →**](https://huggingface.co/spaces/NinjainPJs/UrbanEye)&nbsp;&nbsp;|&nbsp;&nbsp;[**Documentation →**](docs/)&nbsp;&nbsp;|&nbsp;&nbsp;[**Architecture →**](docs/ARCHITECTURE.md)&nbsp;&nbsp;|&nbsp;&nbsp;[**Phase Log →**](docs/PHASES.md)
 
 </div>
 

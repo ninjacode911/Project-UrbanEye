@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import albumentations as A
 import numpy as np
 import pytest
 
-from urbaneye.training.augmentations import (
+A = pytest.importorskip("albumentations")
+
+from urbaneye.training.augmentations import (  # noqa: E402
     apply_augmentation,
     get_train_augmentation,
     validate_augmented_bboxes,
