@@ -1,0 +1,100 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+*.egg
+dist/
+build/
+.eggs/
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+
+# Claude Code
+.claude/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# Ruff
+.ruff_cache/
+
+# Model weights (download separately)
+*.pt
+*.onnx
+*.torchscript
+*.engine
+*.tflite
+*.mlmodel
+
+# Archives and large downloads (too large for git)
+*.zip
+*.tar.gz
+*.tar
+*.rar
+*.7z
+
+# Data and datasets (too large for git)
+data/
+datasets/
+urbaneye-carla-dataset/
+
+# Training outputs
+runs/
+wandb/
+mlruns/
+lightning_logs/
+
+# Video files (too large for git)
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.wmv
+
+# HuggingFace Space models (deployed separately)
+hf_space/models/
+
+# Secrets and environment
+.env
+.env.*
+*.pem
+*.key
+credentials.json
+
+# Jupyter
+.ipynb_checkpoints/
+
+# CARLA
+CarlaUE4/
+CARLA_*/
+PythonAPI/
+
+# Confidential documents
+UrbanEye_Project_Plan.pdf
+
+# Misc
+*.log
+*.bak
+*.tmp

@@ -1,0 +1,15 @@
+# UrbanEye — YOLOv11 Dataset Configuration
+# Standard Ultralytics YOLO dataset format
+
+path: ../datasets/urbaneye
+train: images/train
+val: images/val
+test: images/test
+
+nc: 5
+names:
+  0: vehicle
+  1: pedestrian
+  2: cyclist
+  3: traffic_light
+  4: traffic_sign

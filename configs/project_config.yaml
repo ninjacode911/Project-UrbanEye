@@ -1,0 +1,63 @@
+# UrbanEye — Central Project Configuration
+# This file defines project-wide settings used across all modules.
+
+project:
+  name: "UrbanEye"
+  version: "0.1.0"
+  description: "Autonomous Driving Perception Pipeline"
+
+detection:
+  num_classes: 5
+  class_names:
+    - vehicle
+    - pedestrian
+    - cyclist
+    - traffic_light
+    - traffic_sign
+  confidence_threshold: 0.25
+  nms_iou_threshold: 0.45
+  img_size: 640
+
+training:
+  model_variant: "yolo11m.pt"
+  epochs: 100
+  batch_size: 16
+  img_size: 640
+  lr0: 0.001
+  lrf: 0.01
+  momentum: 0.937
+  weight_decay: 0.0005
+  warmup_epochs: 3
+  mosaic: 1.0
+  mixup: 0.1
+  amp: true
+
+domain_adaptation:
+  epochs: 20
+  lr0: 0.0001
+  freeze_layers: 10
+  carla_ratio: 0.8
+  bdd100k_ratio: 0.2
+
+tracking:
+  bytetrack:
+    high_thresh: 0.6
+    low_thresh: 0.1
+    match_thresh: 0.8
+    max_lost: 30
+    min_hits: 3
+  deepsort:
+    max_age: 70
+    n_init: 3
+    max_cosine_distance: 0.3
+    nn_budget: 100
+    embedder: "mobilenet"
+
+evaluation:
+  targets:
+    mota: 0.72
+    motp: 0.80
+    idf1: 0.65
+    id_switches: 200
+    map50_carla: 0.70
+    map50_bdd100k: 0.50

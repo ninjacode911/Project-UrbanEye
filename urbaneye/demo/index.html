@@ -1,0 +1,1947 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UrbanEye — Autonomous Driving Perception</title>
+
+<!-- Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@300;400;500&family=Outfit:wght@200;300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+<!-- GSAP -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollToPlugin.min.js"></script>
+
+<style>
+/* ========= RESET & VARIABLES ========= */
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+:root {
+  --bg-primary: #06080c;
+  --bg-secondary: #0a0e16;
+  --bg-card: rgba(12, 18, 30, 0.65);
+  --bg-card-hover: rgba(16, 24, 40, 0.8);
+  --surface: #0f1520;
+  --border: rgba(0, 240, 255, 0.08);
+  --border-active: rgba(0, 240, 255, 0.25);
+  --cyan: #00f0ff;
+  --cyan-dim: #00a8b3;
+  --cyan-glow: rgba(0, 240, 255, 0.15);
+  --electric: #00d4ff;
+  --mint: #00ffb2;
+  --amber: #ffb800;
+  --red-alert: #ff3355;
+  --white: #e8edf5;
+  --white-dim: #8892a4;
+  --white-muted: #4a5568;
+  --font-display: 'Chakra Petch', sans-serif;
+  --font-body: 'Outfit', sans-serif;
+  --font-mono: 'IBM Plex Mono', monospace;
+  --radius: 6px;
+  --radius-lg: 12px;
+  --transition: 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg-primary);
+  color: var(--white);
+  font-family: var(--font-body);
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection { background: var(--cyan); color: var(--bg-primary); }
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-primary); }
+::-webkit-scrollbar-thumb { background: var(--cyan-dim); border-radius: 3px; }
+
+/* ========= CANVAS BACKGROUNDS ========= */
+#grid-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+#radar-canvas {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.3;
+}
+
+.noise-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0.03;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-repeat: repeat;
+}
+
+.scanline-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 240, 255, 0.008) 2px,
+    rgba(0, 240, 255, 0.008) 4px
+  );
+}
+
+/* ========= NAV ========= */
+.nav {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+  padding: 0 48px;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: rgba(6, 8, 12, 0.7);
+  backdrop-filter: blur(24px) saturate(1.4);
+  border-bottom: 1px solid var(--border);
+  transition: var(--transition);
+}
+
+.nav.scrolled { background: rgba(6, 8, 12, 0.92); }
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  text-decoration: none;
+}
+
+.nav-logo-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--cyan), var(--mint));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: 16px;
+  color: var(--bg-primary);
+  position: relative;
+  overflow: hidden;
+}
+
+.nav-logo-icon::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,0.3));
+}
+
+.nav-logo-text {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  color: var(--white);
+  text-transform: uppercase;
+}
+
+.nav-logo-text span { color: var(--cyan); }
+
+.nav-links {
+  display: flex;
+  gap: 36px;
+  list-style: none;
+}
+
+.nav-links a {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--white-dim);
+  text-decoration: none;
+  transition: var(--transition);
+  position: relative;
+}
+
+.nav-links a:hover { color: var(--cyan); }
+.nav-links a::after {
+  content: '';
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  width: 0;
+  height: 1px;
+  background: var(--cyan);
+  transition: var(--transition);
+}
+.nav-links a:hover::after { width: 100%; }
+
+.nav-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--mint);
+}
+
+.nav-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--mint);
+  box-shadow: 0 0 8px var(--mint);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 8px var(--mint); }
+  50% { opacity: 0.5; box-shadow: 0 0 16px var(--mint); }
+}
+
+/* ========= HERO ========= */
+.hero {
+  position: relative;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 120px 80px 80px;
+  z-index: 2;
+  overflow: hidden;
+}
+
+.hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 20px;
+  border: 1px solid var(--border-active);
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  background: rgba(0, 240, 255, 0.04);
+  margin-bottom: 40px;
+  width: fit-content;
+  opacity: 0;
+}
+
+.hero-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--cyan);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+.hero-title {
+  font-family: var(--font-display);
+  font-size: clamp(48px, 7vw, 96px);
+  font-weight: 700;
+  line-height: 1.0;
+  letter-spacing: -1px;
+  color: var(--white);
+  margin-bottom: 32px;
+  opacity: 0;
+}
+
+.hero-title .accent { color: var(--cyan); }
+.hero-title .outline {
+  -webkit-text-stroke: 1.5px var(--white-dim);
+  color: transparent;
+}
+
+.hero-sub {
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--white-dim);
+  max-width: 580px;
+  margin-bottom: 52px;
+  opacity: 0;
+}
+
+.hero-actions {
+  display: flex;
+  gap: 16px;
+  opacity: 0;
+}
+
+.btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 36px;
+  background: linear-gradient(135deg, var(--cyan), var(--electric));
+  color: var(--bg-primary);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border: none;
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 40px rgba(0, 240, 255, 0.3);
+}
+
+.btn-primary::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(135deg, transparent, rgba(255,255,255,0.2));
+  opacity: 0;
+  transition: var(--transition);
+}
+.btn-primary:hover::before { opacity: 1; }
+
+.btn-outline {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 16px 36px;
+  background: transparent;
+  color: var(--white);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  border: 1px solid var(--border-active);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.btn-outline:hover {
+  border-color: var(--cyan);
+  background: rgba(0, 240, 255, 0.05);
+  color: var(--cyan);
+}
+
+.hero-stats {
+  position: absolute;
+  right: 80px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  opacity: 0;
+}
+
+.hero-stat {
+  padding: 20px 28px;
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  min-width: 220px;
+  transition: var(--transition);
+}
+
+.hero-stat:hover {
+  border-color: var(--border-active);
+  background: var(--bg-card-hover);
+}
+
+.hero-stat-value {
+  font-family: var(--font-display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--cyan);
+  line-height: 1;
+  margin-bottom: 6px;
+}
+
+.hero-stat-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--white-dim);
+}
+
+/* ========= SECTION COMMON ========= */
+section {
+  position: relative;
+  z-index: 2;
+  padding: 120px 80px;
+}
+
+.section-tag {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--cyan);
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.section-tag::before {
+  content: '';
+  width: 32px;
+  height: 1px;
+  background: var(--cyan);
+}
+
+.section-title {
+  font-family: var(--font-display);
+  font-size: clamp(32px, 4vw, 52px);
+  font-weight: 700;
+  line-height: 1.1;
+  color: var(--white);
+  margin-bottom: 20px;
+}
+
+.section-desc {
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1.7;
+  color: var(--white-dim);
+  max-width: 560px;
+  margin-bottom: 60px;
+}
+
+/* ========= PIPELINE SECTION ========= */
+.pipeline-track {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  position: relative;
+}
+
+.pipeline-track::before {
+  content: '';
+  position: absolute;
+  top: 48px;
+  left: 10%;
+  right: 10%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--cyan-dim), var(--cyan), var(--cyan-dim), transparent);
+  z-index: 0;
+  opacity: 0.3;
+}
+
+.pipeline-stage {
+  position: relative;
+  z-index: 1;
+  padding: 36px 28px;
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  transition: var(--transition);
+  overflow: hidden;
+}
+
+.pipeline-stage:hover {
+  border-color: var(--border-active);
+  transform: translateY(-4px);
+  box-shadow: 0 16px 48px rgba(0, 240, 255, 0.06);
+}
+
+.pipeline-stage::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, var(--cyan), var(--electric));
+  opacity: 0;
+  transition: var(--transition);
+}
+
+.pipeline-stage:hover::before { opacity: 1; }
+
+.pipeline-stage-num {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan);
+  letter-spacing: 2px;
+  margin-bottom: 20px;
+}
+
+.pipeline-stage-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: rgba(0, 240, 255, 0.06);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  margin-bottom: 20px;
+}
+
+.pipeline-stage-title {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 10px;
+  color: var(--white);
+}
+
+.pipeline-stage-desc {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--white-dim);
+  margin-bottom: 20px;
+}
+
+.pipeline-stage-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.meta-tag {
+  padding: 4px 10px;
+  background: rgba(0, 240, 255, 0.04);
+  border: 1px solid var(--border);
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  color: var(--white-dim);
+}
+
+/* ========= INFERENCE LAB ========= */
+.lab-grid {
+  display: grid;
+  grid-template-columns: 1fr 400px;
+  gap: 24px;
+}
+
+.lab-video-zone {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  position: relative;
+}
+
+.lab-video-header {
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lab-video-title {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.lab-video-badge {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  padding: 4px 12px;
+  background: rgba(0, 255, 178, 0.08);
+  border: 1px solid rgba(0, 255, 178, 0.2);
+  border-radius: 100px;
+  color: var(--mint);
+  letter-spacing: 1px;
+}
+
+.lab-video-area {
+  aspect-ratio: 16/9;
+  position: relative;
+  background: var(--bg-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.lab-video-area:hover { background: rgba(16, 24, 40, 0.9); }
+
+.upload-prompt {
+  text-align: center;
+  pointer-events: none;
+}
+
+.upload-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  border: 2px dashed var(--border-active);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+  color: var(--cyan);
+  transition: var(--transition);
+}
+
+.lab-video-area:hover .upload-icon {
+  border-color: var(--cyan);
+  background: rgba(0, 240, 255, 0.05);
+  box-shadow: 0 0 40px rgba(0, 240, 255, 0.1);
+}
+
+.upload-text {
+  font-family: var(--font-display);
+  font-size: 16px;
+  font-weight: 500;
+  color: var(--white);
+  margin-bottom: 6px;
+}
+
+.upload-sub {
+  font-size: 13px;
+  color: var(--white-dim);
+}
+
+.lab-video-file-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  cursor: pointer;
+}
+
+/* Lab Controls Panel */
+.lab-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.control-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  transition: var(--transition);
+}
+
+.control-card:hover { border-color: var(--border-active); }
+
+.control-card-title {
+  font-family: var(--font-display);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--white-dim);
+  margin-bottom: 18px;
+}
+
+/* Tracker Toggle */
+.tracker-toggle {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.tracker-btn {
+  padding: 14px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  cursor: pointer;
+  text-align: center;
+  transition: var(--transition);
+  position: relative;
+  overflow: hidden;
+}
+
+.tracker-btn.active {
+  border-color: var(--cyan);
+  background: rgba(0, 240, 255, 0.06);
+  box-shadow: inset 0 0 20px rgba(0, 240, 255, 0.05);
+}
+
+.tracker-btn-name {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 2px;
+}
+
+.tracker-btn.active .tracker-btn-name { color: var(--cyan); }
+
+.tracker-btn-stat {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--white-muted);
+  letter-spacing: 0.5px;
+}
+
+.tracker-btn.active .tracker-btn-stat { color: var(--cyan-dim); }
+
+/* Confidence Slider */
+.slider-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.slider-label {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--white-dim);
+}
+
+.slider-value {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--cyan);
+}
+
+input[type="range"] {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  background: var(--surface);
+  border-radius: 2px;
+  outline: none;
+}
+
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--cyan);
+  cursor: pointer;
+  border: 3px solid var(--bg-primary);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.4);
+  transition: var(--transition);
+}
+
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.15);
+  box-shadow: 0 0 20px rgba(0, 240, 255, 0.6);
+}
+
+/* Class Filters */
+.class-filters {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.class-filter {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  background: var(--surface);
+  border-radius: var(--radius);
+  cursor: pointer;
+  transition: var(--transition);
+  border: 1px solid transparent;
+}
+
+.class-filter:hover { border-color: var(--border); }
+.class-filter.active { border-color: var(--border-active); background: rgba(0, 240, 255, 0.03); }
+
+.class-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  flex-shrink: 0;
+}
+
+.class-filter-name {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--white);
+  flex: 1;
+}
+
+.class-filter-check {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+  border: 1.5px solid var(--border-active);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: transparent;
+  transition: var(--transition);
+}
+
+.class-filter.active .class-filter-check {
+  background: var(--cyan);
+  border-color: var(--cyan);
+  color: var(--bg-primary);
+}
+
+/* ========= METRICS PANEL ========= */
+.metrics-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2px;
+  margin-top: 24px;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.metric-cell {
+  padding: 24px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  text-align: center;
+  transition: var(--transition);
+}
+
+.metric-cell:hover { background: var(--bg-card-hover); }
+
+.metric-cell-value {
+  font-family: var(--font-display);
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--cyan);
+  margin-bottom: 4px;
+  transition: var(--transition);
+}
+
+.metric-cell-value.counting { color: var(--mint); }
+
+.metric-cell-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--white-dim);
+}
+
+/* ========= COMPARISON SECTION ========= */
+.comparison-grid {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 0;
+  align-items: start;
+}
+
+.comparison-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 40px;
+  transition: var(--transition);
+}
+
+.comparison-card:hover {
+  border-color: var(--border-active);
+  transform: translateY(-2px);
+}
+
+.comparison-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 32px;
+}
+
+.comparison-card-name {
+  font-family: var(--font-display);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.comparison-card-badge {
+  padding: 6px 14px;
+  border-radius: 100px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.badge-speed {
+  background: rgba(0, 240, 255, 0.08);
+  border: 1px solid rgba(0, 240, 255, 0.2);
+  color: var(--cyan);
+}
+
+.badge-accuracy {
+  background: rgba(0, 255, 178, 0.08);
+  border: 1px solid rgba(0, 255, 178, 0.2);
+  color: var(--mint);
+}
+
+.comparison-metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.comparison-metric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--border);
+}
+
+.comparison-metric-row:last-child { border-bottom: none; padding-bottom: 0; }
+
+.comparison-metric-name {
+  font-size: 14px;
+  color: var(--white-dim);
+}
+
+.comparison-metric-value {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--white);
+}
+
+.comparison-metric-value.highlight { color: var(--cyan); }
+
+.comparison-vs {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 24px;
+  align-self: center;
+}
+
+.vs-text {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--white-muted);
+  padding: 16px 20px;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--bg-card);
+}
+
+/* ========= TARGETS TABLE ========= */
+.targets-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.targets-table-wrapper {
+  background: var(--bg-card);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.targets-table-header {
+  padding: 20px 28px;
+  border-bottom: 1px solid var(--border);
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.targets-table-header .icon { color: var(--cyan); font-size: 16px; }
+
+.targets-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.targets-table th {
+  padding: 14px 28px;
+  text-align: left;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--white-muted);
+  border-bottom: 1px solid var(--border);
+  font-weight: 400;
+}
+
+.targets-table td {
+  padding: 14px 28px;
+  font-size: 14px;
+  border-bottom: 1px solid rgba(255,255,255,0.02);
+}
+
+.targets-table tr:last-child td { border-bottom: none; }
+.targets-table tr:hover td { background: rgba(0, 240, 255, 0.02); }
+
+.target-metric-name { color: var(--white); font-weight: 400; }
+.target-metric-value {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  color: var(--cyan);
+}
+
+.target-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 100px;
+}
+
+.target-status.target { background: rgba(0, 240, 255, 0.06); color: var(--cyan); }
+
+/* ========= FOOTER ========= */
+.footer {
+  position: relative;
+  z-index: 2;
+  border-top: 1px solid var(--border);
+  padding: 48px 80px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.footer-left {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--white-muted);
+  letter-spacing: 0.5px;
+}
+
+.footer-left span { color: var(--cyan); }
+
+.footer-links {
+  display: flex;
+  gap: 28px;
+}
+
+.footer-links a {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--white-dim);
+  text-decoration: none;
+  transition: var(--transition);
+}
+
+.footer-links a:hover { color: var(--cyan); }
+
+/* ========= GLOW EFFECTS ========= */
+.glow-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(120px);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.glow-1 {
+  width: 600px;
+  height: 600px;
+  background: rgba(0, 240, 255, 0.04);
+  top: -200px;
+  right: -200px;
+}
+
+.glow-2 {
+  width: 500px;
+  height: 500px;
+  background: rgba(0, 255, 178, 0.03);
+  bottom: -200px;
+  left: -200px;
+}
+
+.glow-3 {
+  width: 400px;
+  height: 400px;
+  background: rgba(0, 212, 255, 0.04);
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+/* ========= RESPONSIVE ========= */
+@media (max-width: 1024px) {
+  section { padding: 80px 32px; }
+  .nav { padding: 0 24px; }
+  .hero { padding: 120px 32px 80px; }
+  .hero-stats { display: none; }
+  .lab-grid { grid-template-columns: 1fr; }
+  .pipeline-track { grid-template-columns: 1fr 1fr; gap: 12px; }
+  .comparison-grid { grid-template-columns: 1fr; gap: 16px; }
+  .comparison-vs { padding: 16px 0; }
+  .vs-text { border-radius: var(--radius); }
+  .targets-grid { grid-template-columns: 1fr; }
+  .footer { flex-direction: column; gap: 20px; text-align: center; }
+}
+
+@media (max-width: 640px) {
+  .pipeline-track { grid-template-columns: 1fr; }
+  .metrics-bar { grid-template-columns: 1fr 1fr; }
+  .nav-links { display: none; }
+  .hero-title { font-size: 36px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Background Layers -->
+<canvas id="grid-canvas"></canvas>
+<canvas id="radar-canvas"></canvas>
+<div class="noise-overlay"></div>
+<div class="scanline-overlay"></div>
+
+<!-- Navigation -->
+<nav class="nav" id="nav">
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-icon">UE</div>
+    <div class="nav-logo-text">Urban<span>Eye</span></div>
+  </a>
+  <ul class="nav-links">
+    <li><a href="#pipeline">Pipeline</a></li>
+    <li><a href="#lab">Inference Lab</a></li>
+    <li><a href="#comparison">Trackers</a></li>
+    <li><a href="#metrics">Metrics</a></li>
+  </ul>
+  <div class="nav-status">
+    <div class="nav-status-dot"></div>
+    SYSTEM ONLINE
+  </div>
+</nav>
+
+<!-- Hero -->
+<section class="hero" id="hero">
+  <div class="glow-orb glow-1"></div>
+  <div class="glow-orb glow-2"></div>
+
+  <div class="hero-badge">Autonomous Driving Perception Pipeline</div>
+
+  <h1 class="hero-title">
+    See The City<br>
+    <span class="accent">Through</span> <span class="outline">Machine</span><br>
+    <span class="accent">Eyes</span>
+  </h1>
+
+  <p class="hero-sub">
+    Zero-hardware autonomous driving perception — CARLA synthetic data,
+    YOLOv11 detection across 5 critical classes, and dual-tracker
+    fusion running at 60+ FPS. Built entirely on free infrastructure.
+  </p>
+
+  <div class="hero-actions">
+    <a href="#lab" class="btn-primary">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+      Launch Inference
+    </a>
+    <a href="#pipeline" class="btn-outline">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h5l3-9 4 18 3-9h5"/></svg>
+      View Architecture
+    </a>
+  </div>
+
+  <div class="hero-stats" id="hero-stats">
+    <div class="hero-stat">
+      <div class="hero-stat-value" data-count="50000">0</div>
+      <div class="hero-stat-label">Annotated Frames</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value">5</div>
+      <div class="hero-stat-label">Detection Classes</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value">60+</div>
+      <div class="hero-stat-label">FPS Real-Time</div>
+    </div>
+    <div class="hero-stat">
+      <div class="hero-stat-value">$0</div>
+      <div class="hero-stat-label">Infrastructure Cost</div>
+    </div>
+  </div>
+</section>
+
+<!-- Pipeline Architecture -->
+<section id="pipeline">
+  <div class="section-tag">System Architecture</div>
+  <h2 class="section-title">Four-Stage<br>Perception Pipeline</h2>
+  <p class="section-desc">
+    From synthetic simulation to real-time tracking — each stage is
+    independently executable, fully tested, and reproducible on free GPUs.
+  </p>
+
+  <div class="pipeline-track">
+    <div class="pipeline-stage" data-stage>
+      <div class="pipeline-stage-num">STAGE 01</div>
+      <div class="pipeline-stage-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
+      </div>
+      <div class="pipeline-stage-title">Synthetic Data</div>
+      <div class="pipeline-stage-desc">CARLA generates 50K+ auto-annotated frames across 144 scenario configurations with full weather and lighting control.</div>
+      <div class="pipeline-stage-meta">
+        <span class="meta-tag">CARLA 0.9.15</span>
+        <span class="meta-tag">8 Maps</span>
+        <span class="meta-tag">6 Weather</span>
+        <span class="meta-tag">YOLO Export</span>
+      </div>
+    </div>
+
+    <div class="pipeline-stage" data-stage>
+      <div class="pipeline-stage-num">STAGE 02</div>
+      <div class="pipeline-stage-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+      </div>
+      <div class="pipeline-stage-title">Model Training</div>
+      <div class="pipeline-stage-desc">YOLOv11 fine-tuned with 3-layer domain adaptation — weather randomization, augmentation, and BDD100K mixed training.</div>
+      <div class="pipeline-stage-meta">
+        <span class="meta-tag">YOLOv11</span>
+        <span class="meta-tag">Kaggle T4</span>
+        <span class="meta-tag">AMP</span>
+        <span class="meta-tag">ONNX</span>
+      </div>
+    </div>
+
+    <div class="pipeline-stage" data-stage>
+      <div class="pipeline-stage-num">STAGE 03</div>
+      <div class="pipeline-stage-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+      </div>
+      <div class="pipeline-stage-title">Dual Tracking</div>
+      <div class="pipeline-stage-desc">ByteTrack for real-time speed (60+ FPS) with two-stage matching, DeepSORT for identity-persistent tracking with Re-ID.</div>
+      <div class="pipeline-stage-meta">
+        <span class="meta-tag">ByteTrack</span>
+        <span class="meta-tag">DeepSORT</span>
+        <span class="meta-tag">Kalman Filter</span>
+        <span class="meta-tag">Hungarian</span>
+      </div>
+    </div>
+
+    <div class="pipeline-stage" data-stage>
+      <div class="pipeline-stage-num">STAGE 04</div>
+      <div class="pipeline-stage-icon">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="var(--cyan)" stroke-width="1.5"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+      </div>
+      <div class="pipeline-stage-title">Eval & Demo</div>
+      <div class="pipeline-stage-desc">Standard MOT metrics (MOTA, IDF1, ID Switches) with per-class breakdown and interactive Gradio-based demo.</div>
+      <div class="pipeline-stage-meta">
+        <span class="meta-tag">MOTA</span>
+        <span class="meta-tag">IDF1</span>
+        <span class="meta-tag">Gradio</span>
+        <span class="meta-tag">HuggingFace</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Inference Lab -->
+<section id="lab">
+  <div class="glow-orb glow-3"></div>
+  <div class="section-tag">Inference Lab</div>
+  <h2 class="section-title">Run The Pipeline</h2>
+  <p class="section-desc">
+    Upload any dashcam video — YOLOv11 detects, the dual tracker assigns
+    persistent IDs, and you see annotated results with live metrics.
+  </p>
+
+  <div class="lab-grid">
+    <div class="lab-video-zone">
+      <div class="lab-video-header">
+        <div class="lab-video-title">Video Feed</div>
+        <div class="lab-video-badge">Awaiting Input</div>
+      </div>
+      <div class="lab-video-area" id="video-drop">
+        <input type="file" accept="video/*" class="lab-video-file-input" id="video-input">
+        <div class="upload-prompt">
+          <div class="upload-icon">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+          </div>
+          <div class="upload-text">Drop video or click to upload</div>
+          <div class="upload-sub">MP4, AVI, MOV &mdash; max 100MB</div>
+        </div>
+      </div>
+
+      <!-- Metrics Bar -->
+      <div class="metrics-bar">
+        <div class="metric-cell">
+          <div class="metric-cell-value" id="m-detections">0</div>
+          <div class="metric-cell-label">Detections</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-cell-value" id="m-tracks">0</div>
+          <div class="metric-cell-label">Active Tracks</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-cell-value" id="m-fps">0.0</div>
+          <div class="metric-cell-label">FPS</div>
+        </div>
+        <div class="metric-cell">
+          <div class="metric-cell-value" id="m-idsw">0</div>
+          <div class="metric-cell-label">ID Switches</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="lab-controls">
+      <!-- Tracker Selection -->
+      <div class="control-card">
+        <div class="control-card-title">Tracker Engine</div>
+        <div class="tracker-toggle">
+          <div class="tracker-btn active" data-tracker="bytetrack" onclick="selectTracker(this)">
+            <div class="tracker-btn-name">ByteTrack</div>
+            <div class="tracker-btn-stat">60+ FPS / Motion</div>
+          </div>
+          <div class="tracker-btn" data-tracker="deepsort" onclick="selectTracker(this)">
+            <div class="tracker-btn-name">DeepSORT</div>
+            <div class="tracker-btn-stat">30 FPS / Re-ID</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Confidence -->
+      <div class="control-card">
+        <div class="control-card-title">Confidence Threshold</div>
+        <div class="slider-row">
+          <span class="slider-label">Min Confidence</span>
+          <span class="slider-value" id="conf-value">0.25</span>
+        </div>
+        <input type="range" min="0.05" max="0.95" step="0.05" value="0.25" id="conf-slider" oninput="updateConfidence(this)">
+      </div>
+
+      <!-- Class Filters -->
+      <div class="control-card">
+        <div class="control-card-title">Detection Classes</div>
+        <div class="class-filters">
+          <div class="class-filter active" onclick="toggleClass(this)" data-class="vehicle">
+            <div class="class-dot" style="background: #00ff66;"></div>
+            <div class="class-filter-name">Vehicle</div>
+            <div class="class-filter-check">&#10003;</div>
+          </div>
+          <div class="class-filter active" onclick="toggleClass(this)" data-class="pedestrian">
+            <div class="class-dot" style="background: #ff3355;"></div>
+            <div class="class-filter-name">Pedestrian</div>
+            <div class="class-filter-check">&#10003;</div>
+          </div>
+          <div class="class-filter active" onclick="toggleClass(this)" data-class="cyclist">
+            <div class="class-dot" style="background: #ffa500;"></div>
+            <div class="class-filter-name">Cyclist</div>
+            <div class="class-filter-check">&#10003;</div>
+          </div>
+          <div class="class-filter active" onclick="toggleClass(this)" data-class="traffic_light">
+            <div class="class-dot" style="background: #00ffff;"></div>
+            <div class="class-filter-name">Traffic Light</div>
+            <div class="class-filter-check">&#10003;</div>
+          </div>
+          <div class="class-filter active" onclick="toggleClass(this)" data-class="traffic_sign">
+            <div class="class-dot" style="background: #ff00ff;"></div>
+            <div class="class-filter-name">Traffic Sign</div>
+            <div class="class-filter-check">&#10003;</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Run Button -->
+      <button class="btn-primary" style="width:100%; justify-content:center;" id="run-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+        Run Inference
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- Tracker Comparison -->
+<section id="comparison">
+  <div class="section-tag">Dual Tracker System</div>
+  <h2 class="section-title">ByteTrack vs DeepSORT</h2>
+  <p class="section-desc">
+    Two complementary trackers — ByteTrack for raw speed with two-stage
+    matching, DeepSORT for identity persistence through deep Re-ID features.
+  </p>
+
+  <div class="comparison-grid">
+    <div class="comparison-card">
+      <div class="comparison-card-header">
+        <div class="comparison-card-name">ByteTrack</div>
+        <div class="comparison-card-badge badge-speed">Speed King</div>
+      </div>
+      <div class="comparison-metrics">
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">MOTA</div>
+          <div class="comparison-metric-value highlight">&ge; 0.72</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">Processing FPS</div>
+          <div class="comparison-metric-value highlight">60+</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">IDF1</div>
+          <div class="comparison-metric-value">&ge; 0.65</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">ID Switches</div>
+          <div class="comparison-metric-value">&lt; 200</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">Matching</div>
+          <div class="comparison-metric-value">IoU + Kalman</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">Re-ID</div>
+          <div class="comparison-metric-value" style="color: var(--white-muted);">None</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="comparison-vs">
+      <div class="vs-text">VS</div>
+    </div>
+
+    <div class="comparison-card">
+      <div class="comparison-card-header">
+        <div class="comparison-card-name">DeepSORT</div>
+        <div class="comparison-card-badge badge-accuracy">ID Robust</div>
+      </div>
+      <div class="comparison-metrics">
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">MOTA</div>
+          <div class="comparison-metric-value">&ge; 0.68</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">Processing FPS</div>
+          <div class="comparison-metric-value">25&ndash;35</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">IDF1</div>
+          <div class="comparison-metric-value" style="color: var(--mint);">&ge; 0.70</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">ID Switches</div>
+          <div class="comparison-metric-value" style="color: var(--mint);">&lt; 80</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">Matching</div>
+          <div class="comparison-metric-value">Cascade + Cosine</div>
+        </div>
+        <div class="comparison-metric-row">
+          <div class="comparison-metric-name">Re-ID</div>
+          <div class="comparison-metric-value" style="color: var(--mint);">MobileNetV2</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Target Metrics -->
+<section id="metrics">
+  <div class="section-tag">Performance Targets</div>
+  <h2 class="section-title">Evaluation Benchmarks</h2>
+  <p class="section-desc">
+    Research-grade evaluation using standard MOT Challenge and COCO metrics,
+    with per-class breakdown across all 5 detection classes.
+  </p>
+
+  <div class="targets-grid">
+    <div class="targets-table-wrapper">
+      <div class="targets-table-header">
+        <span class="icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+        </span>
+        Detection Metrics
+      </div>
+      <table class="targets-table">
+        <thead>
+          <tr><th>Metric</th><th>Target</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="target-metric-name">mAP@50 (All Classes)</td>
+            <td class="target-metric-value">&ge; 0.70</td>
+            <td><span class="target-status target">Target</span></td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">mAP@50 &mdash; Vehicles</td>
+            <td class="target-metric-value">&ge; 0.80</td>
+            <td><span class="target-status target">Target</span></td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">mAP@50 &mdash; Pedestrians</td>
+            <td class="target-metric-value">&ge; 0.65</td>
+            <td><span class="target-status target">Target</span></td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">mAP@50 &mdash; Cyclists</td>
+            <td class="target-metric-value">&ge; 0.60</td>
+            <td><span class="target-status target">Target</span></td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">BDD100K Transfer mAP@50</td>
+            <td class="target-metric-value">&ge; 0.50</td>
+            <td><span class="target-status target">Target</span></td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">YOLOv11n ONNX FPS (CPU)</td>
+            <td class="target-metric-value">&ge; 25</td>
+            <td><span class="target-status target">Target</span></td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="targets-table-wrapper">
+      <div class="targets-table-header">
+        <span class="icon">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+        </span>
+        Tracking Metrics
+      </div>
+      <table class="targets-table">
+        <thead>
+          <tr><th>Metric</th><th>ByteTrack</th><th>DeepSORT</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="target-metric-name">MOTA</td>
+            <td class="target-metric-value">&ge; 0.72</td>
+            <td class="target-metric-value">&ge; 0.68</td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">MOTP</td>
+            <td class="target-metric-value">&ge; 0.80</td>
+            <td class="target-metric-value">&ge; 0.80</td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">IDF1</td>
+            <td class="target-metric-value">&ge; 0.65</td>
+            <td class="target-metric-value">&ge; 0.70</td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">ID Switches</td>
+            <td class="target-metric-value">&lt; 200</td>
+            <td class="target-metric-value">&lt; 80</td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">Mostly Tracked</td>
+            <td class="target-metric-value">&ge; 55%</td>
+            <td class="target-metric-value">&ge; 55%</td>
+          </tr>
+          <tr>
+            <td class="target-metric-name">Processing FPS</td>
+            <td class="target-metric-value">&ge; 60</td>
+            <td class="target-metric-value">&ge; 25</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</section>
+
+<!-- Footer -->
+<footer class="footer">
+  <div class="footer-left">
+    &copy; 2026 <span>UrbanEye</span> &mdash; Navnit Amrutharaj
+  </div>
+  <div class="footer-links">
+    <a href="https://github.com/ninjacode911/urbaneye" target="_blank">GitHub</a>
+    <a href="#pipeline">Architecture</a>
+    <a href="#lab">Demo</a>
+  </div>
+</footer>
+
+<script>
+/* ==========================================
+   PERSPECTIVE GRID CANVAS
+   ========================================== */
+(function() {
+  const canvas = document.getElementById('grid-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h;
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let offset = 0;
+
+  function drawGrid() {
+    ctx.clearRect(0, 0, w, h);
+
+    // Horizontal perspective lines
+    const horizon = h * 0.45;
+    const vanishX = w * 0.5;
+    const lines = 30;
+    const spread = 2.5;
+
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+    ctx.lineWidth = 0.5;
+
+    for (let i = 0; i < lines; i++) {
+      const t = i / lines;
+      const y = horizon + (h - horizon) * Math.pow(t, 1.3);
+      const xSpread = (w * spread) * (1 - Math.pow(1 - t, 2));
+
+      ctx.beginPath();
+      ctx.moveTo(vanishX - xSpread, y);
+      ctx.lineTo(vanishX + xSpread, y);
+      ctx.stroke();
+    }
+
+    // Vertical converging lines
+    const vertLines = 24;
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.025)';
+    for (let i = 0; i < vertLines; i++) {
+      const t = (i / (vertLines - 1)) * 2 - 1;
+      const bottomX = vanishX + t * w * 1.2;
+
+      ctx.beginPath();
+      ctx.moveTo(vanishX, horizon);
+      ctx.lineTo(bottomX, h + 100);
+      ctx.stroke();
+    }
+
+    // Animated scan line
+    offset = (offset + 0.3) % (h - horizon);
+    const scanY = horizon + offset;
+    const grad = ctx.createLinearGradient(0, scanY - 2, 0, scanY + 2);
+    grad.addColorStop(0, 'transparent');
+    grad.addColorStop(0.5, 'rgba(0, 240, 255, 0.12)');
+    grad.addColorStop(1, 'transparent');
+    ctx.fillStyle = grad;
+    ctx.fillRect(0, scanY - 2, w, 4);
+
+    requestAnimationFrame(drawGrid);
+  }
+  drawGrid();
+})();
+
+/* ==========================================
+   RADAR SWEEP CANVAS
+   ========================================== */
+(function() {
+  const canvas = document.getElementById('radar-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h;
+
+  function resize() {
+    w = canvas.width = window.innerWidth;
+    h = canvas.height = window.innerHeight;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  let angle = 0;
+  const blips = [];
+  for (let i = 0; i < 12; i++) {
+    blips.push({
+      angle: Math.random() * Math.PI * 2,
+      dist: 0.15 + Math.random() * 0.3,
+      size: 1.5 + Math.random() * 2,
+      alpha: 0
+    });
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, w, h);
+
+    const cx = w * 0.82;
+    const cy = h * 0.28;
+    const r = Math.min(w, h) * 0.18;
+
+    // Concentric rings
+    for (let i = 1; i <= 4; i++) {
+      ctx.beginPath();
+      ctx.arc(cx, cy, r * (i / 4), 0, Math.PI * 2);
+      ctx.strokeStyle = `rgba(0, 240, 255, ${0.03 + i * 0.005})`;
+      ctx.lineWidth = 0.5;
+      ctx.stroke();
+    }
+
+    // Crosshair
+    ctx.strokeStyle = 'rgba(0, 240, 255, 0.04)';
+    ctx.beginPath(); ctx.moveTo(cx - r, cy); ctx.lineTo(cx + r, cy); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(cx, cy - r); ctx.lineTo(cx, cy + r); ctx.stroke();
+
+    // Sweep
+    angle += 0.008;
+    const grad = ctx.createConicGradient(angle, cx, cy);
+    grad.addColorStop(0, 'rgba(0, 240, 255, 0.06)');
+    grad.addColorStop(0.08, 'rgba(0, 240, 255, 0)');
+    grad.addColorStop(1, 'rgba(0, 240, 255, 0)');
+
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, Math.PI * 2);
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // Blips
+    const sweepAngle = angle % (Math.PI * 2);
+    blips.forEach(b => {
+      const diff = Math.abs(((sweepAngle - b.angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2));
+      if (diff < 0.3) b.alpha = 1;
+      else b.alpha *= 0.97;
+
+      if (b.alpha > 0.05) {
+        const bx = cx + Math.cos(b.angle) * r * b.dist;
+        const by = cy + Math.sin(b.angle) * r * b.dist;
+        ctx.beginPath();
+        ctx.arc(bx, by, b.size, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 240, 255, ${b.alpha * 0.6})`;
+        ctx.fill();
+
+        ctx.beginPath();
+        ctx.arc(bx, by, b.size * 3, 0, Math.PI * 2);
+        ctx.fillStyle = `rgba(0, 240, 255, ${b.alpha * 0.08})`;
+        ctx.fill();
+      }
+    });
+
+    requestAnimationFrame(draw);
+  }
+  draw();
+})();
+
+/* ==========================================
+   GSAP ANIMATIONS
+   ========================================== */
+gsap.registerPlugin(ScrollTrigger, ScrollToPlugin);
+
+// Hero entrance
+const heroTL = gsap.timeline({ delay: 0.3 });
+heroTL
+  .to('.hero-badge', { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' })
+  .to('.hero-title', { opacity: 1, y: 0, duration: 0.8, ease: 'power3.out' }, '-=0.4')
+  .to('.hero-sub', { opacity: 1, y: 0, duration: 0.7, ease: 'power3.out' }, '-=0.4')
+  .to('.hero-actions', { opacity: 1, y: 0, duration: 0.6, ease: 'power3.out' }, '-=0.3')
+  .to('.hero-stats', { opacity: 1, x: 0, duration: 0.8, ease: 'power3.out' }, '-=0.5');
+
+// Set initial states
+gsap.set('.hero-badge', { y: 20 });
+gsap.set('.hero-title', { y: 30 });
+gsap.set('.hero-sub', { y: 20 });
+gsap.set('.hero-actions', { y: 20 });
+gsap.set('.hero-stats', { x: 40 });
+
+// Counter animation for hero stat
+function animateCount(el, target, duration) {
+  const obj = { val: 0 };
+  gsap.to(obj, {
+    val: target,
+    duration: duration,
+    ease: 'power2.out',
+    onUpdate: () => {
+      el.textContent = Math.floor(obj.val).toLocaleString();
+    }
+  });
+}
+
+setTimeout(() => {
+  const countEl = document.querySelector('[data-count="50000"]');
+  if (countEl) animateCount(countEl, 50000, 2.5);
+}, 1200);
+
+// Pipeline stages scroll animation
+document.querySelectorAll('[data-stage]').forEach((el, i) => {
+  gsap.from(el, {
+    scrollTrigger: {
+      trigger: el,
+      start: 'top 85%',
+      toggleActions: 'play none none none',
+    },
+    y: 40,
+    opacity: 0,
+    duration: 0.7,
+    delay: i * 0.12,
+    ease: 'power3.out'
+  });
+});
+
+// Section entrances
+document.querySelectorAll('.section-tag, .section-title, .section-desc').forEach(el => {
+  gsap.from(el, {
+    scrollTrigger: {
+      trigger: el,
+      start: 'top 88%',
+      toggleActions: 'play none none none',
+    },
+    y: 24,
+    opacity: 0,
+    duration: 0.6,
+    ease: 'power3.out'
+  });
+});
+
+// Comparison cards
+document.querySelectorAll('.comparison-card').forEach((el, i) => {
+  gsap.from(el, {
+    scrollTrigger: {
+      trigger: el,
+      start: 'top 85%',
+    },
+    x: i === 0 ? -40 : 40,
+    opacity: 0,
+    duration: 0.8,
+    ease: 'power3.out'
+  });
+});
+
+// Target tables
+document.querySelectorAll('.targets-table-wrapper').forEach((el, i) => {
+  gsap.from(el, {
+    scrollTrigger: {
+      trigger: el,
+      start: 'top 85%',
+    },
+    y: 30,
+    opacity: 0,
+    duration: 0.7,
+    delay: i * 0.15,
+    ease: 'power3.out'
+  });
+});
+
+// Nav scroll behavior
+window.addEventListener('scroll', () => {
+  document.getElementById('nav').classList.toggle('scrolled', window.scrollY > 50);
+});
+
+// Smooth scroll for nav links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    e.preventDefault();
+    const target = document.querySelector(a.getAttribute('href'));
+    if (target) gsap.to(window, { scrollTo: { y: target, offsetY: 80 }, duration: 1, ease: 'power3.inOut' });
+  });
+});
+
+/* ==========================================
+   INTERACTIVE CONTROLS
+   ========================================== */
+function selectTracker(el) {
+  document.querySelectorAll('.tracker-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+
+  // Animate metrics to show tracker difference
+  const isDeep = el.dataset.tracker === 'deepsort';
+  gsap.to('#m-fps', {
+    textContent: isDeep ? '28.5' : '62.4',
+    duration: 0.5,
+    snap: { textContent: 0.1 },
+    ease: 'power2.out'
+  });
+}
+
+function updateConfidence(el) {
+  document.getElementById('conf-value').textContent = parseFloat(el.value).toFixed(2);
+}
+
+function toggleClass(el) {
+  el.classList.toggle('active');
+}
+
+// Simulated metrics on run
+document.getElementById('run-btn').addEventListener('click', () => {
+  const btn = document.getElementById('run-btn');
+  btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83"/></svg> Processing...';
+  btn.style.pointerEvents = 'none';
+
+  // Badge update
+  document.querySelector('.lab-video-badge').textContent = 'Processing';
+  document.querySelector('.lab-video-badge').style.color = 'var(--amber)';
+  document.querySelector('.lab-video-badge').style.borderColor = 'rgba(255, 184, 0, 0.3)';
+  document.querySelector('.lab-video-badge').style.background = 'rgba(255, 184, 0, 0.08)';
+
+  const isDeep = document.querySelector('.tracker-btn.active').dataset.tracker === 'deepsort';
+
+  // Simulate metrics counting up
+  const targetDets = Math.floor(Math.random() * 300) + 400;
+  const targetTracks = Math.floor(Math.random() * 20) + 8;
+  const targetFps = isDeep ? 28.5 : 62.4;
+
+  animateCount(document.getElementById('m-detections'), targetDets, 2);
+  animateCount(document.getElementById('m-tracks'), targetTracks, 1.5);
+
+  gsap.to({ val: 0 }, {
+    val: targetFps,
+    duration: 1.5,
+    ease: 'power2.out',
+    onUpdate: function() { document.getElementById('m-fps').textContent = this.targets()[0].val.toFixed(1); }
+  });
+
+  animateCount(document.getElementById('m-idsw'), Math.floor(Math.random() * 15) + 3, 2.5);
+
+  setTimeout(() => {
+    btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg> Complete';
+    document.querySelector('.lab-video-badge').textContent = 'Complete';
+    document.querySelector('.lab-video-badge').style.color = 'var(--mint)';
+    document.querySelector('.lab-video-badge').style.borderColor = 'rgba(0, 255, 178, 0.3)';
+    document.querySelector('.lab-video-badge').style.background = 'rgba(0, 255, 178, 0.08)';
+
+    setTimeout(() => {
+      btn.innerHTML = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="5 3 19 12 5 21 5 3"/></svg> Run Inference';
+      btn.style.pointerEvents = 'auto';
+    }, 2000);
+  }, 3000);
+});
+
+/* Parallax on glow orbs */
+document.addEventListener('mousemove', e => {
+  const x = (e.clientX / window.innerWidth - 0.5) * 2;
+  const y = (e.clientY / window.innerHeight - 0.5) * 2;
+
+  gsap.to('.glow-1', { x: x * 30, y: y * 20, duration: 1.5, ease: 'power2.out' });
+  gsap.to('.glow-2', { x: x * -20, y: y * -15, duration: 1.5, ease: 'power2.out' });
+  gsap.to('.glow-3', { x: x * 15, y: y * 10, duration: 1.5, ease: 'power2.out' });
+});
+</script>
+</body>
+</html>

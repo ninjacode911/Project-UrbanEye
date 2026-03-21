@@ -1,0 +1,74 @@
+# UrbanEye — CARLA Data Generation Configuration
+# All sensor parameters, map selections, weather presets, and class definitions.
+
+simulation:
+  sync_mode: true
+  fixed_delta_seconds: 0.05  # 1/20 = 20 FPS
+  no_rendering: false
+
+sensors:
+  rgb:
+    width: 1920
+    height: 1080
+    fov: 90.0
+    fps: 20
+    position: [2.0, 0.0, 1.4]  # Dashcam mount position (x, y, z)
+  depth:
+    width: 640
+    height: 480
+    fov: 90.0
+    position: [2.0, 0.0, 1.4]
+  semantic:
+    width: 640
+    height: 480
+    fov: 90.0
+    position: [2.0, 0.0, 1.4]
+
+# CARLA town maps for data generation
+maps:
+  - Town01   # Small town with T-junctions
+  - Town02   # Residential area
+  - Town03   # Urban downtown with roundabout
+  - Town04   # Highway with on/off ramps
+  - Town05   # Urban multilane with bridges
+  - Town06   # Michigan-style highway
+  - Town07   # Rural with narrow roads
+  - Town10HD  # Inner city with pedestrians
+
+# Weather presets for scenario diversity
+weather_presets:
+  - ClearNoon
+  - CloudyNoon
+  - WetNoon
+  - HardRainNoon
+  - ClearSunset
+  - CloudySunset
+
+# Time-of-day variations
+time_of_day:
+  - noon
+  - sunset
+  - night
+
+# Detection classes with YOLO class IDs
+classes:
+  0: vehicle
+  1: pedestrian
+  2: cyclist
+  3: traffic_light
+  4: traffic_sign
+
+# NPC spawn ranges per scenario
+npc:
+  vehicles:
+    min: 50
+    max: 150
+  pedestrians:
+    min: 30
+    max: 80
+
+# Dataset split ratios (by scenario, not by frame — prevents data leakage)
+dataset_split:
+  train: 0.80
+  val: 0.10
+  test: 0.10

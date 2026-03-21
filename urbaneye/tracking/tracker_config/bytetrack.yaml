@@ -1,0 +1,6 @@
+# ByteTrack Hyperparameters
+high_thresh: 0.6      # Minimum confidence for Stage 1 (high-confidence detections)
+low_thresh: 0.1       # Minimum confidence for Stage 2 (low-confidence detections)
+match_thresh: 0.8     # IoU threshold for matching (higher = stricter)
+max_lost: 30          # Frames before a lost track is deleted
+min_hits: 3           # Detections before a new track is confirmed

@@ -1,0 +1,7 @@
+# UrbanEye — CARLA-Specific Dependencies
+# Install these only when running CARLA data generation on WSL2.
+# CARLA Python API must match your CARLA simulator version.
+
+carla==0.9.15
+pygame>=2.1
+networkx>=2.6
