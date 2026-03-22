@@ -84,3 +84,20 @@ Deploy the UrbanEye demo to HuggingFace Spaces as a publicly accessible Gradio a
 | WSL2 (RTX 5070) | GPU | 21-23 | Full speed, production inference |
 | Windows (RTX 5070) | CPU | 2-3 | PyTorch CUDA incompatible |
 | HuggingFace Spaces | CPU | ~2-5 | Free tier, capped at 150 frames |
+
+---
+
+## Model Upgrade: YOLOv11n → YOLOv11m (2026-03-22)
+
+Retrained with YOLOv11m (20M params, 68.2 GFLOPs) for 100 epochs.
+
+| Metric | YOLOv11n (old) | YOLOv11m (new) | Improvement |
+|--------|---------------|---------------|-------------|
+| mAP@50 | 0.473 | **0.540** | +14.2% |
+| mAP@50-95 | 0.290 | **0.341** | +17.6% |
+| Parameters | 2.6M | 20M | 8x |
+| Training | 42 min | 3.0 hrs | 100 epochs |
+
+Per-class AP@50: Pedestrian 0.736, Traffic Sign 0.636, Vehicle 0.592, Traffic Light 0.418, Cyclist 0.320.
+
+Pushed to HuggingFace Space, replacing the old YOLOv11n model.
